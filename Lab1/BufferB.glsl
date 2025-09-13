@@ -29,7 +29,6 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     vec2 pos = prev.xy;
     float timer = prev.z;
     
-    float outData = 0.0;
     if (iFrame == 0) {
         pos.x = rand(vec2(id, E * float(id)));
         pos.y = rand(vec2(PI * float(id), id)) * 1.5;

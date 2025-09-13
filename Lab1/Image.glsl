@@ -5,7 +5,7 @@ const vec2 WHEEL_SIZE = vec2(0.04, 0.01);
 const vec3 ROAD_COLOR = vec3(0.5, 0.5, 0.5);
 const vec3 CAR_COLOR = vec3(0.195, 0.78, 0.7);
 const vec3 OBSTACLE_COLOR = vec3(1.0, 0.7, 0.78);
-const float OBSTACLE_SIZE = 0.04;
+const float OBSTACLE_SIZE = 0.1;
 
 float sdRect(in vec2 p, in vec2 size) {  
   vec2 d = abs(p) - size;
@@ -45,6 +45,13 @@ vec2 correctAspectRatio(vec2 coord, vec2 res) {
     return coord * vec2(res.x / res.y, 1.0);
 }
 
+float opSmoothUnion(float d1, float d2, float k)
+{
+    float h = clamp(0.5 + 0.5 * (d2 - d1) / k, 0.0, 1.0);
+    return mix(d2, d1, h) - k * h * (1.0 - h);
+}
+
+
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 uv = correctAspectRatio(fragCoord / iResolution.xy, iResolution.xy);
     
@@ -61,7 +68,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
         figurePos = correctAspectRatio(figurePos, iResolution.xy);
         
         float distFigure = sdObstacle(id, uv, figurePos);
-        obstDist = min(obstDist, distFigure);
+        obstDist = opSmoothUnion(obstDist, distFigure, 0.05);
     }
     
     col = mix(OBSTACLE_COLOR, col, step(0.0, obstDist));
