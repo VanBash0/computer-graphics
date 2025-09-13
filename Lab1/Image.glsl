@@ -16,23 +16,6 @@ float sdCircle(in vec2 p, float r) {
     return length(p) - r;
 }
 
-float sdTriangle(in vec2 p, in float r) {
-    const float k = sqrt(3.0);
-    p.x = abs(p.x) - r;
-    p.y = p.y + r/k;
-    if( p.x+k*p.y>0.0 ) p = vec2(p.x-k*p.y,-k*p.x-p.y)/2.0;
-    p.x -= clamp( p.x, -2.0*r, 0.0 );
-    return -length(p)*sign(p.y);
-}
-
-float sdHexagon(in vec2 p, in float r) {
-    const vec3 k = vec3(-0.866025404,0.5,0.577350269);
-    p = abs(p);
-    p -= 2.0*min(dot(k.xy,p),0.0)*k.xy;
-    p -= vec2(clamp(p.x, -k.z*r, k.z*r), r);
-    return length(p)*sign(p.y);
-}
-
 vec2 getCarCoord() {
     return vec2(
         texelFetch(iChannel0, ivec2(0, 0), 0).x,
@@ -50,15 +33,11 @@ float sdCar(vec2 p) {
 }
 
 float sdObstacle(int id, vec2 p, vec2 pos) {
-    switch (id % 4) {
+    switch (id % 2) {
         case 0:
             return sdRect(p - pos, vec2(OBSTACLE_SIZE));
         case 1:
             return sdCircle(p - pos, OBSTACLE_SIZE);
-        case 2:
-            return sdTriangle(p - pos, OBSTACLE_SIZE);
-        case 3:
-            return sdHexagon(p - pos, OBSTACLE_SIZE);
     }
 }
 
