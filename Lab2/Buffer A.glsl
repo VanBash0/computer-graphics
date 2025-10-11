@@ -20,12 +20,24 @@ const float MAX_GUN_ANGLE = PI / 6.5;
 const float MIN_GUN_ANGLE = -PI / 30.;
 const float START_VELOCITY = 15.;
 
-const vec2 TANK_START_POS = vec2(18.0, 8.0);
+const vec2 TANK_START_POS = vec2(118.0, 108.0);
+const vec2 ENEMY_POS = vec2(109.0, 111.0);
+const float FIRE_DISTANCE = 8.;
 
 const vec3 TANK_BODY_SIZE = vec3(1.0, 0.5, 1.5);
 const vec3 TANK_TURRET_SIZE = vec3(0.6, 1.5, 0.6);
 const float GUN_LENGTH = 3.;
 const vec3 GUN_OFFSET = vec3(0., 0., -1.);
+
+float getDistance(in vec2 pos1, in vec2 pos2) {
+    vec2 diff = pos1 - pos2;
+    return sqrt(diff.x * diff.x + diff.y * diff.y);
+}
+
+float getAngleToPlayer(in vec2 plPos, in vec2 enPos) {
+    vec2 dirToPlayer = plPos - enPos;
+    return atan(dirToPlayer.x, dirToPlayer.y); // atan с двумя аргументами
+}
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord)
 {
@@ -35,7 +47,9 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     
     if (iFrame != 0 && int(fragCoord.x) == 0) {
         bool isMissileActive = texelFetch(iChannel0, ivec2(0, 5), 0).x == 1.0;
-        bool spacePressed = (texelFetch(iChannel1, ivec2(KEY_SPACE, 0), 0).x > 0.);
+        bool spacePressed = texelFetch(iChannel1, ivec2(KEY_SPACE, 0), 0).x > 0.;
+        bool enemyCanShoot = texelFetch(iChannel0, ivec2(0, 6), 0).y == 1.0;
+        bool isEnemyMissileActive = texelFetch(iChannel0, ivec2(0, 10), 0).x == 1.0;
             
         switch (int(fragCoord.y)) {
         
@@ -86,7 +100,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
             outValue = vec4(x, y, z, 0.0);
             break;
         
-        // Стартовые xyz снаряда
+        // Стартовые xyz снаряда, время
         case 3:
             if (spacePressed && !isMissileActive) {
                 vec2 tankPos = texelFetch(iChannel0, ivec2(0), 0).xy;
@@ -133,6 +147,84 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
             }
             
             outValue = vec4(newIsMissileActive ? 1.0 : 0.0, 0.0, 0.0, 0.0);
+            break;
+        
+        // Вращение башни врага, флаг должен ли он стрелять
+        case 6:
+            float enemyRotateAngle = texelFetch(iChannel0, ivec2(0, 6), 0).x;
+            vec2 playerPos = texelFetch(iChannel0, ivec2(0, 0), 0).xy;
+            float dist = getDistance(playerPos, ENEMY_POS);
+            if (dist > FIRE_DISTANCE) {
+                outValue = vec4(enemyRotateAngle, 0.0, vec2(.0));
+                break;
+            }
+            else {
+                float newAngle = getAngleToPlayer(playerPos, ENEMY_POS);
+                outValue = vec4(newAngle, 1.0, vec2(.0));
+                break;
+            }
+            
+        // Текущие xyz снаряда врага
+        case 7:
+            if (!isEnemyMissileActive) break;
+            {
+            vec3 startCoord = texelFetch(iChannel0, ivec2(0, 8), 0).xyz;
+            float startTime = texelFetch(iChannel0, ivec2(0, 8), 0).w;
+            float startYaw = texelFetch(iChannel0, ivec2(0, 9), 0).x;
+            
+            float time = iTime - startTime;
+            float x = START_VELOCITY * sin(startYaw) * time + startCoord.x;
+            float z = START_VELOCITY * cos(startYaw) * time + startCoord.z;
+            float y = startCoord.y - .5 * G * time * time;
+            outValue = vec4(x, y, z, 0.0);
+            }
+            break;
+            
+        // Стартовые xyz снаряда врага, время
+        case 8:
+            if (enemyCanShoot && !isEnemyMissileActive) {
+                vec2 tankPos = ENEMY_POS;
+                float turretAngle = texelFetch(iChannel0, ivec2(0, 6), 0).x;
+                
+                vec3 gunEnd = vec3(
+                    tankPos.x + sin(turretAngle) * GUN_LENGTH,
+                    (TANK_BODY_SIZE.y + TANK_TURRET_SIZE.y)/2.0,
+                    tankPos.y + cos(turretAngle) * GUN_LENGTH
+                );
+                outValue = vec4(gunEnd, iTime);
+            } else {
+                outValue = texelFetch(iChannel0, ivec2(0, 8), 0);
+            }
+            break;
+        
+        // Стартовый yaw врага
+        case 9:
+            if (enemyCanShoot && !isEnemyMissileActive) {
+                float turretAngle = texelFetch(iChannel0, ivec2(0, 6), 0).x;
+                outValue = vec4(turretAngle, vec3(.0));
+            } else {
+                outValue = texelFetch(iChannel0, ivec2(0, 9), 0);
+            }
+            break;
+            
+        // Флаг для врага
+        case 10:
+            bool newIsEnemyMissileActive = isEnemyMissileActive;
+            
+            // Создание нового снаряда
+            if (enemyCanShoot && !isEnemyMissileActive) {
+                newIsEnemyMissileActive = true;
+            }
+            
+            // Проверка столкновения с землей
+            if (isEnemyMissileActive) {
+                vec3 missilePos = texelFetch(iChannel0, ivec2(0, 7), 0).xyz;
+                if (missilePos.y < 0.0) {
+                    newIsEnemyMissileActive = false;
+                }
+            }
+            
+            outValue = vec4(newIsEnemyMissileActive ? 1.0 : 0.0, 0.0, 0.0, 0.0);
             break;
         }
     }

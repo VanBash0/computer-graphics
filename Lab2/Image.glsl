@@ -10,9 +10,9 @@ const vec3 COLOR_PLAYER = vec3(.4, .494, .172);
 const vec3 COLOR_MISSILE = vec3(.5, .5, .5);
 const vec3 COLOR_ENEMY = vec3(.8, .306, .361);
 
-const vec3 LIGHT_POSITION = vec3(10.0, 10.0, 25.0);
-const vec3 CAMERA_POS = vec3(18.0, 5.0, 18.0);
-const vec3 CAMERA_LOOKAT = vec3(14.0, 3.0, 11.0);
+const vec3 LIGHT_POSITION = vec3(110.0, 10.0, 125.0);
+const vec3 CAMERA_POS = vec3(118.0, 5.0, 118.0);
+const vec3 CAMERA_LOOKAT = vec3(114.0, 3.0, 111.0);
 
 const vec3 TANK_BODY_SIZE = vec3(1.0, 0.5, 1.5);
 const vec3 TANK_TURRET_SIZE = vec3(0.6, 1.5, 0.6);
@@ -21,9 +21,8 @@ const float GUN_LENGTH = 3.;
 const vec3 GUN_OFFSET = vec3(0., 0., -1.);
 const float MISSILE_RADIUS = .2;
 
-const vec2 ENEMY_POS = vec2(9.0, 11.0);
+const vec2 ENEMY_POS = vec2(109.0, 111.0);
 const float ENEMY_BODY_ANGLE = 0.0;
-const float ENEMY_TURRET_ANGLE = 0.0;
 const float ENEMY_GUN_PITCH = 0.0;
 
 mat3 rotateY(float alpha) {
@@ -96,22 +95,39 @@ Surface sdPlayerTank(in vec3 p) {
     return sdTank(p, tankPos, bodyAngle, turretAngle, gunPitch, COLOR_PLAYER);
 }
 
-Surface sdMissile(in vec3 p) {
-    bool isMissileActive = texelFetch(iChannel0, ivec2(0, 5), 0).x == 1.0;
-    if (!isMissileActive) return Surface(1.0, COLOR_MISSILE);
-    vec3 missilePos = texelFetch(iChannel0, ivec2(0, 2), 0).xyz;
-    return sdSphere(p, missilePos, MISSILE_RADIUS, COLOR_MISSILE);
+Surface sdEnemyTank(in vec3 p) {
+    float turretAngle = texelFetch(iChannel0, ivec2(0, 6), 0).x;
+    return sdTank(p, ENEMY_POS, ENEMY_BODY_ANGLE, turretAngle, ENEMY_GUN_PITCH, COLOR_ENEMY);
+}
+
+Surface sdMissile(in vec3 p, bool isActive, in vec3 pos) {
+    if (!isActive) return Surface(1000.0, COLOR_MISSILE);
+    return sdSphere(p, pos, MISSILE_RADIUS, COLOR_MISSILE);
+}
+
+Surface sdPlayerMissile(in vec3 p) {
+    bool isActive = texelFetch(iChannel0, ivec2(0, 5), 0).x == 1.0;
+    vec3 pos = texelFetch(iChannel0, ivec2(0, 2), 0).xyz;
+    return sdMissile(p, isActive, pos);
+}
+
+Surface sdEnemyMissile(in vec3 p) {
+    bool isActive = texelFetch(iChannel0, ivec2(0, 10), 0).x == 1.0;
+    vec3 pos = texelFetch(iChannel0, ivec2(0, 7), 0).xyz;
+    return sdMissile(p, isActive, pos);
 }
 
 Surface sdScene(in vec3 p) {
     Surface playerTank = sdPlayerTank(p);
     Surface ground = sdPlane(p, COLOR_GROUND);
-    Surface missile = sdMissile(p);
-    Surface enemyTank = sdTank(p, ENEMY_POS, ENEMY_BODY_ANGLE, ENEMY_TURRET_ANGLE, ENEMY_GUN_PITCH, COLOR_ENEMY);
+    Surface missile = sdPlayerMissile(p);
+    Surface enemyTank = sdEnemyTank(p);
+    Surface enemyMissile = sdEnemyMissile(p);
     
     Surface result = minWithColor(missile, playerTank);
     result = minWithColor(result, ground);
     result = minWithColor(result, enemyTank);
+    result = minWithColor(result, enemyMissile);
     return result;
 }
 
