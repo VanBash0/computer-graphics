@@ -8,8 +8,9 @@ const TGAColor green = TGAColor(0, 255, 0, 255);
 Model* model = NULL;
 const int width = 800;
 const int height = 800;
+const Vec3f lightDirection = Vec3f(0, 0, -1);
 
-void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage& image, TGAColor color) {
+void drawTriangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage& image, TGAColor color) {
     if (t0.y > t1.y) std::swap(t0, t1);
     if (t0.y > t2.y) std::swap(t0, t2);
     if (t1.y > t2.y) std::swap(t1, t2);
@@ -48,11 +49,17 @@ int main(int argc, char** argv) {
     for (int i = 0; i < model->getNumFaces(); i++) {
         std::vector<int> face = model->getFaceByIndex(i);
         Vec2i screenCoords[3];
+        Vec3f worldCoords[3];
         for (int j = 0; j < 3; j++) {
-            Vec3f worldCoords = model->getVertByIndex(face[j]);
-            screenCoords[j] = Vec2i((worldCoords.x + 1.) * width / 2., (worldCoords.y + 1.) * height / 2.);
+            Vec3f vert = model->getVertByIndex(face[j]);
+            screenCoords[j] = Vec2i((vert.x + 1.) * width / 2., (vert.y + 1.) * height / 2.);
+            worldCoords[j] = vert;
         }
-        triangle(screenCoords[0], screenCoords[1], screenCoords[2], image, TGAColor(rand() % 255, rand() % 255, rand() % 255, rand() % 255));
+        Vec3f normal = ((worldCoords[2] - worldCoords[0])^(worldCoords[1] - worldCoords[0])).normalize();
+        float intensity = normal * lightDirection;
+        if (intensity > 0) {
+            drawTriangle(screenCoords[0], screenCoords[1], screenCoords[2], image, TGAColor(intensity * 255, intensity * 255, intensity * 255, 255));
+        }
     }
 
     image.flip_vertically();
