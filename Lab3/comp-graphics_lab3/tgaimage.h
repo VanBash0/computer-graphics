@@ -93,4 +93,4 @@ public:
 	void clear();
 };
 
-#endif //__IMAGE_H__#pragma once
+#endif //__IMAGE_H__
