@@ -22,6 +22,7 @@ Model::Model(const char* filename) : verts_(), faces_() {
         else if (!line.compare(0, 2, "f ")) {
             iss >> trash;
             std::vector<int> face;
+            std::vector<int> texture;
             int fidx;
             int vertex_index, texture_index, normal_index;
             char separator;
@@ -32,6 +33,7 @@ Model::Model(const char* filename) : verts_(), faces_() {
                     iss >> separator;
                     if (iss.peek() != '/') {
                         iss >> texture_index;
+                        texture.push_back(texture_index - 1);
                     }
                     if (iss.peek() == '/') {
                         iss >> separator;
@@ -42,9 +44,16 @@ Model::Model(const char* filename) : verts_(), faces_() {
             }
 
             faces_.push_back(std::move(face));
+            textures_.push_back(std::move(texture));
+        }
+        else if (!line.compare(0, 3, "vt ")) {
+            iss >> trash >> trash;
+            Vec2f vt;
+            for (int i = 0; i < 2; i++) iss >> vt.raw[i];
+            textureVerts_.push_back(vt);
         }
     }
-    std::cerr << "Vertex number: " << verts_.size() << ". Faces number: " << faces_.size() << std::endl;
+    std::cerr << "Vertex number: " << verts_.size() << ". Faces number: " << faces_.size() << ". Textures number: " << textures_.size() << std::endl;
 }
 
 Model::~Model() {
@@ -64,4 +73,12 @@ std::vector<int> Model::getFaceByIndex(int idx) {
 
 Vec3f Model::getVertByIndex(int i) {
     return verts_[i];
+}
+
+std::vector<int> Model::getTextureByIndex(int i) {
+    return textures_[i];
+}
+
+Vec2f Model::getTextureVertByIndex(int i) {
+    return textureVerts_[i];
 }
