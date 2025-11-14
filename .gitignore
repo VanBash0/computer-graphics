@@ -28,7 +28,6 @@ mono_crash.*
 [Rr]elease/x64/
 [Rr]eleases/x64/
 bin/x64/
-obj/x64/
 
 [Dd]ebug/x86/
 [Dd]ebugPublic/x86/
@@ -99,7 +98,6 @@ StyleCopReport.xml
 *_h.h
 *.ilk
 *.meta
-*.obj
 *.idb
 *.iobj
 *.pch

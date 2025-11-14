@@ -5,7 +5,7 @@
 #include <vector>
 #include "model.h"
 
-Model::Model(const char* filename) : verts_(), faces_() {
+Model::Model(const char* filename) : vertexes_(), faces_() {
     std::ifstream in;
     in.open(filename, std::ifstream::in);
     if (in.fail()) return;
@@ -17,7 +17,7 @@ Model::Model(const char* filename) : verts_(), faces_() {
             iss >> trash;
             Vec3f v;
             for (int i = 0; i < 3; i++) iss >> v.raw[i];
-            verts_.push_back(v);
+            vertexes_.push_back(v);
         }
         else if (!line.compare(0, 2, "f ")) {
             iss >> trash;
@@ -50,17 +50,17 @@ Model::Model(const char* filename) : verts_(), faces_() {
             iss >> trash >> trash;
             Vec2f vt;
             for (int i = 0; i < 2; i++) iss >> vt.raw[i];
-            textureVerts_.push_back(vt);
+            textureVertexes_.push_back(vt);
         }
     }
-    std::cerr << "Vertex number: " << verts_.size() << ". Faces number: " << faces_.size() << ". Textures number: " << textures_.size() << std::endl;
+    std::cerr << "Vertex number: " << vertexes_.size() << ". Faces number: " << faces_.size() << ". Textures number: " << textures_.size() << std::endl;
 }
 
 Model::~Model() {
 }
 
-int Model::getNumVerts() {
-    return (int)verts_.size();
+int Model::getNumVertexes() {
+    return (int)vertexes_.size();
 }
 
 int Model::getNumFaces() {
@@ -71,14 +71,14 @@ std::vector<int> Model::getFaceByIndex(int idx) {
     return faces_[idx];
 }
 
-Vec3f Model::getVertByIndex(int i) {
-    return verts_[i];
+Vec3f Model::getVertexByIndex(int i) {
+    return vertexes_[i];
 }
 
 std::vector<int> Model::getTextureByIndex(int i) {
     return textures_[i];
 }
 
-Vec2f Model::getTextureVertByIndex(int i) {
-    return textureVerts_[i];
+Vec2f Model::getTextureVertexByIndex(int i) {
+    return textureVertexes_[i];
 }

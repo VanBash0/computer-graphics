@@ -91,12 +91,12 @@ int main(int argc, char** argv) {
         Vec3f worldCoords[3];
         Vec2f uvCoords[3];
         for (int j = 0; j < 3; j++) {
-            Vec3f vert = model->getVertByIndex(face[j]);
+            Vec3f vert = model->getVertexByIndex(face[j]);
             screenCoords[j] = Vec3i((vert.x + 1.) * width / 2.,
                                     (vert.y + 1.) * height / 2.,
                                     (vert.z + 1.) * depth / 2.);
             worldCoords[j] = vert;
-            uvCoords[j] = model->getTextureVertByIndex(textureIndices[j]);
+            uvCoords[j] = model->getTextureVertexByIndex(textureIndices[j]);
         }
         Vec3f normal = ((worldCoords[2] - worldCoords[0])^(worldCoords[1] - worldCoords[0])).normalize();
         float intensity = normal * lightDirection;
