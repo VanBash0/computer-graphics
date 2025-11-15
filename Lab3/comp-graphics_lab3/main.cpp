@@ -1,11 +1,13 @@
 #include "tgaimage.h"
 #include "model.h"
+#include "geometry.h"
 
 Model* model = NULL;
 const int width = 800;
 const int height = 800;
 const int depth = 255;
 const Vec3f lightDirection = Vec3f(0, 0, -1);
+const Vec3f cameraPos = Vec3f(0, 0, 1);
 
 void drawTriangle(Vec3i t0, Vec3i t1, Vec3i t2, Vec2f uv0, Vec2f uv1, Vec2f uv2, TGAImage& image, TGAImage& texture, int* zbuffer) {
     if (t0.y > t1.y) {
@@ -64,25 +66,61 @@ void drawTriangle(Vec3i t0, Vec3i t1, Vec3i t2, Vec2f uv0, Vec2f uv1, Vec2f uv2,
             TGAColor color = texture.get(static_cast<int>(uv.x), static_cast<int>(uv.y));
 
             int idx = x + y * width;
-            if (zbuffer[idx] < z) {
-                zbuffer[idx] = z;
-                image.set(x, y, color);
+            if (idx >= 0 && idx < width * height) {
+                if (zbuffer[idx] < z) {
+                    zbuffer[idx] = z;
+                    image.set(x, y, color);
+                }
             }
         }
     }
 }
 
+Matrix vectorToMatrix(Vec3f v) {
+    Matrix result(4, 1);
+    result[0][0] = v.x;
+    result[1][0] = v.y;
+    result[2][0] = v.z;
+    result[3][0] = 1.f;
+    return result;
+}
+
+Vec3f matrixToVector(Matrix m) {
+    Vec3f result;
+    float w = m[3][0];
+    result.x = m[0][0] / w;
+    result.y = m[1][0] / w;
+    result.z = m[2][0] / w;
+    return result;
+}
+
+Matrix getCameraViewport(int x, int y, int width, int height, int depth) {
+    Matrix result = Matrix::identity(4);
+    result[0][0] = width / 2.f;
+    result[1][1] = height / 2.f;
+    result[2][2] = depth / 2.f;
+
+    result[0][3] = width / 2.f + x;
+    result[1][3] = height / 2.f + y;
+    result[2][3] = depth / 2.f;
+    return result;
+}
+
 int main(int argc, char** argv) {
     TGAImage image(width, height, TGAImage::RGB);
     TGAImage texture;
-    texture.read_tga_file("obj/african_head_diffuse.tga");
+    texture.read_tga_file("resources/african_head_diffuse.tga");
     texture.flip_vertically();
 
-    model = new Model("obj/african_head.obj");
+    model = new Model("resources/african_head.obj");
     int* zbuffer = new int[width * height];
     for (int i = 0; i < width * height; i++) {
         zbuffer[i] = -std::numeric_limits<float>::max();
     }
+
+    Matrix cameraViewport = getCameraViewport(0, 0, width, height, depth);
+    Matrix projectionMatrix = Matrix::identity(4);
+    projectionMatrix[3][2] = -1.f / cameraPos.z;
 
     for (int i = 0; i < model->getNumFaces(); i++) {
         std::vector<int> face = model->getFaceByIndex(i);
@@ -92,9 +130,10 @@ int main(int argc, char** argv) {
         Vec2f uvCoords[3];
         for (int j = 0; j < 3; j++) {
             Vec3f vert = model->getVertexByIndex(face[j]);
-            screenCoords[j] = Vec3i((vert.x + 1.) * width / 2.,
-                                    (vert.y + 1.) * height / 2.,
-                                    (vert.z + 1.) * depth / 2.);
+            //screenCoords[j] = Vec3i((vert.x + 1.) * width / 2.,
+            //                        (vert.y + 1.) * height / 2.,
+            //                        (vert.z + 1.) * depth / 2.);
+            screenCoords[j] = matrixToVector(cameraViewport * projectionMatrix * vectorToMatrix(vert));
             worldCoords[j] = vert;
             uvCoords[j] = model->getTextureVertexByIndex(textureIndices[j]);
         }
