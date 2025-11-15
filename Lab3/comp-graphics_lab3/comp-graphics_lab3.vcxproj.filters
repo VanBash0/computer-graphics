@@ -38,5 +38,8 @@
     <ClInclude Include="tgaimage.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="openfile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

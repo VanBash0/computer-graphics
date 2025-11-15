@@ -1,13 +1,14 @@
 #include "tgaimage.h"
 #include "model.h"
 #include "geometry.h"
+#include "openfile.h"
 
 Model* model = NULL;
 const int width = 800;
 const int height = 800;
 const int depth = 255;
 const Vec3f lightDirection = Vec3f(0, 0, -1);
-const Vec3f cameraPos = Vec3f(0, 0, 1);
+const Vec3f cameraPos = Vec3f(0, 0, 3);
 
 void drawTriangle(Vec3i t0, Vec3i t1, Vec3i t2, Vec2f uv0, Vec2f uv1, Vec2f uv2, TGAImage& image, TGAImage& texture, int* zbuffer) {
     if (t0.y > t1.y) {
@@ -115,7 +116,7 @@ int main(int argc, char** argv) {
     model = new Model("resources/african_head.obj");
     int* zbuffer = new int[width * height];
     for (int i = 0; i < width * height; i++) {
-        zbuffer[i] = -std::numeric_limits<float>::max();
+        zbuffer[i] = -1e30f;
     }
 
     Matrix cameraViewport = getCameraViewport(0, 0, width, height, depth);
@@ -146,6 +147,7 @@ int main(int argc, char** argv) {
 
     image.flip_vertically();
     image.write_tga_file("output.tga");
+    openFile("output.tga");
 
     delete[] zbuffer;
     delete model;
