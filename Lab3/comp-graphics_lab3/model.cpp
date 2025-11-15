@@ -23,6 +23,7 @@ Model::Model(const char* filename) : vertexes_(), faces_() {
             iss >> trash;
             std::vector<int> face;
             std::vector<int> texture;
+            std::vector<int> normal;
             int fidx;
             int vertex_index, texture_index, normal_index;
             char separator;
@@ -38,6 +39,7 @@ Model::Model(const char* filename) : vertexes_(), faces_() {
                     if (iss.peek() == '/') {
                         iss >> separator;
                         iss >> normal_index;
+                        normal.push_back(normal_index - 1);
                     }
                     iss >> std::ws;
                 }
@@ -45,6 +47,7 @@ Model::Model(const char* filename) : vertexes_(), faces_() {
 
             faces_.push_back(std::move(face));
             textures_.push_back(std::move(texture));
+            normals_.push_back(std::move(normal));
         }
         else if (!line.compare(0, 3, "vt ")) {
             iss >> trash >> trash;
@@ -52,8 +55,14 @@ Model::Model(const char* filename) : vertexes_(), faces_() {
             for (int i = 0; i < 2; i++) iss >> vt[i];
             textureVertexes_.push_back(vt);
         }
+        else if (!line.compare(0, 3, "vn ")) {
+            iss >> trash >> trash;
+            Vec3f vn;
+            for (int i = 0; i < 3; i++) iss >> vn[i];
+            normalVertexes_.push_back(vn);
+        }
     }
-    std::cerr << "Vertex number: " << vertexes_.size() << ". Faces number: " << faces_.size() << ". Textures number: " << textures_.size() << std::endl;
+    std::cerr << "Vertex number: " << vertexes_.size() << ". Faces number: " << faces_.size() << ". Textures number: " << textures_.size() << ". Normals number: " << normals_.size() << std::endl;
 }
 
 Model::~Model() {
@@ -81,4 +90,12 @@ std::vector<int> Model::getTextureByIndex(int i) {
 
 Vec2f Model::getTextureVertexByIndex(int i) {
     return textureVertexes_[i];
+}
+
+Vec3f Model::getNormalVertexByIndex(int i) {
+    return normalVertexes_[i];
+}
+
+std::vector<int> Model::getNormalByIndex(int i) {
+    return normals_[i];
 }
