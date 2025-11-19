@@ -8,7 +8,9 @@ const int width = 800;
 const int height = 800;
 const int depth = 255;
 const Vec3f lightDirection = Vec3f(0, 0, 1);
-const Vec3f cameraPos = Vec3f(0, 0, 3);
+const Vec3f eyePos = Vec3f(0, 0, 1);
+const Vec3f centerPos = Vec3f(0, 1, 0);
+const Vec3f upVector = Vec3f(0, 1, 0);
 
 void drawTriangle(Vec3f t0, Vec3f t1, Vec3f t2, Vec2f uv0, Vec2f uv1, Vec2f uv2, Vec3f n0, Vec3f n1, Vec3f n2, TGAImage& image, TGAImage& texture_image, int* zbuffer) {
     if (t0.y > t1.y) {
@@ -84,7 +86,7 @@ void drawTriangle(Vec3f t0, Vec3f t1, Vec3f t2, Vec2f uv0, Vec2f uv1, Vec2f uv2,
 
             int idx = x + y * width;
             if (idx >= 0 && idx < width * height) {
-                if (zbuffer[idx] < z && intensity > 0) {
+                if (zbuffer[idx] < z && intensity > 0   ) {
                     zbuffer[idx] = z;
                     image.set(x, y, color);
                 }
@@ -123,6 +125,20 @@ Matrix getCameraViewport(int x, int y, int width, int height, int depth) {
     return result;
 }
 
+Matrix getLookAt(Vec3f eye, Vec3f center, Vec3f up) {
+    Vec3f z = (eye - center).normalize();
+    Vec3f x = (up ^ z).normalize();
+    Vec3f y = (z ^ x).normalize();
+    Matrix res = Matrix::identity(4);
+    for (int i = 0; i < 3; i++) {
+        res[0][i] = x[i];
+        res[1][i] = y[i];
+        res[2][i] = z[i];
+        res[i][3] = -center[i];
+    }
+    return res;
+}
+
 int main(int argc, char** argv) {
     TGAImage image(width, height, TGAImage::RGB);
     TGAImage texture;
@@ -137,7 +153,8 @@ int main(int argc, char** argv) {
 
     Matrix cameraViewport = getCameraViewport(0, 0, width, height, depth);
     Matrix projectionMatrix = Matrix::identity(4);
-    projectionMatrix[3][2] = -1.f / cameraPos.z;
+    Matrix viewModel = getLookAt(eyePos, centerPos, upVector);
+    projectionMatrix[3][2] = -1.f / (eyePos - centerPos).norm();
 
     for (int i = 0; i < model->getNumFaces(); i++) {
         std::vector<int> face = model->getFaceByIndex(i);
@@ -149,10 +166,7 @@ int main(int argc, char** argv) {
         Vec3f normalCoords[3];
         for (int j = 0; j < 3; j++) {
             Vec3f vert = model->getVertexByIndex(face[j]);
-            //screenCoords[j] = Vec3i((vert.x + 1.) * width / 2.,
-            //                        (vert.y + 1.) * height / 2.,
-            //                        (vert.z + 1.) * depth / 2.);
-            screenCoords[j] = matrixToVector(cameraViewport * projectionMatrix * vectorToMatrix(vert));
+            screenCoords[j] = matrixToVector(cameraViewport * projectionMatrix * viewModel * vectorToMatrix(vert));
             worldCoords[j] = vert;
             uvCoords[j] = model->getTextureVertexByIndex(textureIndices[j]);
             normalCoords[j] = model->getNormalVertexByIndex(normalIndices[j]);
