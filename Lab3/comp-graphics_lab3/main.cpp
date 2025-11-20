@@ -12,71 +12,35 @@ const Vec3f eyePos = Vec3f(0, 0, 1);
 const Vec3f centerPos = Vec3f(0, 1, 0);
 const Vec3f upVector = Vec3f(0, 1, 0);
 
+Vec3f getBarycentricCoords(Vec3f P, Vec3f A, Vec3f B, Vec3f C) {
+    Vec3f s0(C.x - A.x, B.x - A.x, A.x - P.x);
+    Vec3f s1(C.y - A.y, B.y - A.y, A.y - P.y);
+    Vec3f u = s0 ^ s1;
+    if (std::abs(u.z) < 1) return Vec3f(-1, 1, 1);
+    return Vec3f(1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z);
+}
+
 void drawTriangle(Vec3f t0, Vec3f t1, Vec3f t2, Vec2f uv0, Vec2f uv1, Vec2f uv2, Vec3f n0, Vec3f n1, Vec3f n2, TGAImage& image, TGAImage& texture_image, int* zbuffer) {
-    if (t0.y > t1.y) {
-        std::swap(t0, t1);
-        std::swap(uv0, uv1);
-        std::swap(n0, n1);
-    };
-    if (t0.y > t2.y) {
-        std::swap(t0, t2);
-        std::swap(uv0, uv2);
-        std::swap(n0, n2);
-    };
-    if (t1.y > t2.y) {
-        std::swap(t1, t2);
-        std::swap(uv1, uv2);
-        std::swap(n1, n2);
-    };
-    const int total_height = t2.y - t0.y;
-    if (total_height == 0) return;
+    int minX = std::max(0, (int)std::min({ t0.x, t1.x, t2.x }));
+    int maxX = std::min(width - 1, (int)std::max({ t0.x, t1.x, t2.x }));
+    int minY = std::max(0, (int)std::min({ t0.y, t1.y, t2.y }));
+    int maxY = std::min(height - 1, (int)std::max({ t0.y, t1.y, t2.y }));
 
-    const int segment1_height = t1.y - t0.y;
-    const int segment2_height = t2.y - t1.y;
+    for (int x = minX; x <= maxX; x++) {
+        for (int y = minY; y <= maxY; y++) {
+            Vec3f baryCoord = getBarycentricCoords(Vec3f(x, y, 0), t0, t1, t2);
+            if (baryCoord.x < 0 || baryCoord.y < 0 || baryCoord.z < 0) continue;
+            float z = t0.z * baryCoord.x + t1.z * baryCoord.y + t2.z * baryCoord.z;
+            int idx = x + y * width;
+            if (zbuffer[idx] > z) continue;
+            zbuffer[idx] = z;
 
-    for (int y = t0.y; y <= t2.y; y++) {
-        float alpha = static_cast<float>(y - t0.y) / total_height;
-        Vec3f A = t0 + (t2 - t0) * alpha;
-        Vec2f uvA = uv0 + (uv2 - uv0) * alpha;
-        Vec3f nA = n0 + (n2 - n0) * alpha;
-
-        Vec3f B;
-        Vec2f uvB;
-        Vec3f nB;
-
-        if (y < t1.y && segment1_height > 0) {
-            float beta = static_cast<float>(y - t0.y) / segment1_height;
-            B = t0 + (t1 - t0) * beta;
-            uvB = uv0 + (uv1 - uv0) * beta;
-            nB = n0 + (n1 - n0) * beta;
-        }
-        else if (segment2_height > 0) {
-            float beta = static_cast<float>(y - t1.y) / segment2_height;
-            B = t1 + (t2 - t1) * beta;
-            uvB = uv1 + (uv2 - uv1) * beta;
-            nB = n1 + (n2 - n1) * beta;
-        }
-        else {
-            continue;
-        }
-
-        if (A.x > B.x) {
-            std::swap(A, B);
-            std::swap(uvA, uvB);
-            std::swap(nA, nB);
-        }
-
-        for (int x = A.x; x <= B.x; x++) {
-            if (A.x == B.x) continue;
-            float t = static_cast<float>(x - A.x) / (B.x - A.x);
-            float z = A.z + (B.z - A.z) * t;
-
-            Vec2f uv = uvA + (uvB - uvA) * t;
+            Vec2f uv = uv0 * baryCoord.x + uv1 * baryCoord.y + uv2 * baryCoord.z;
             uv.x *= texture_image.get_width();
             uv.y *= texture_image.get_height();
             TGAColor color = texture_image.get(static_cast<int>(uv.x), static_cast<int>(uv.y));
 
-            Vec3f normal = nA + (nB - nA) * t;
+            Vec3f normal = n0 * baryCoord.x + n1 * baryCoord.y + n2 * baryCoord.z;
             normal.normalize();
             float intensity = normal * lightDirection;
             if (intensity < 0) intensity = 0;
@@ -84,13 +48,7 @@ void drawTriangle(Vec3f t0, Vec3f t1, Vec3f t2, Vec2f uv0, Vec2f uv1, Vec2f uv2,
             color.g *= intensity;
             color.b *= intensity;
 
-            int idx = x + y * width;
-            if (idx >= 0 && idx < width * height) {
-                if (zbuffer[idx] < z && intensity > 0   ) {
-                    zbuffer[idx] = z;
-                    image.set(x, y, color);
-                }
-            }
+            image.set(x, y, color);
         }
     }
 }
@@ -171,11 +129,7 @@ int main(int argc, char** argv) {
             uvCoords[j] = model->getTextureVertexByIndex(textureIndices[j]);
             normalCoords[j] = model->getNormalVertexByIndex(normalIndices[j]);
         }
-        //Vec3f normal = ((worldCoords[2] - worldCoords[0])^(worldCoords[1] - worldCoords[0])).normalize();
-        //float intensity = normal * lightDirection;
-        //if (intensity > 0) {
-            drawTriangle(screenCoords[0], screenCoords[1], screenCoords[2], uvCoords[0], uvCoords[1], uvCoords[2], normalCoords[0], normalCoords[1], normalCoords[2], image, texture, zbuffer);
-        //}
+        drawTriangle(screenCoords[0], screenCoords[1], screenCoords[2], uvCoords[0], uvCoords[1], uvCoords[2], normalCoords[0], normalCoords[1], normalCoords[2], image, texture, zbuffer);
     }
 
     image.flip_vertically();

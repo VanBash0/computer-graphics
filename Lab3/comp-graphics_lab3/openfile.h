@@ -1,6 +1,7 @@
 #ifndef __OPENFILE_H__
 #define __OPENFILE_H__
 
+#define NOMINMAX
 #include <windows.h>
 
 void openFile(const char* filename) {
