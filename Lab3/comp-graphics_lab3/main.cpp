@@ -8,9 +8,40 @@ const int width = 800;
 const int height = 800;
 const int depth = 255;
 const Vec3f lightDirection = Vec3f(0, 0, 1);
-const Vec3f eyePos = Vec3f(0, 0, 1);
-const Vec3f centerPos = Vec3f(0, 1, 0);
+const Vec3f eyePos = Vec3f(0, 0, 5);
+const Vec3f centerPos = Vec3f(0, 0, 0);
 const Vec3f upVector = Vec3f(0, 1, 0);
+const float shininess = 64.0f;
+const float ambientStrength = 0.3f;
+const float specularStrength = 0.2f;
+const float diffuseStrength = 0.7f;
+
+TGAColor phongShader(const Vec3f& normal_, const Vec3f& fragPos_, const Vec3f& lightDir_, const Vec3f& viewDir_, const TGAColor& color_) {
+    Vec3f N = normal_;
+    N.normalize();
+    Vec3f L = lightDir_;
+    L.normalize();
+    Vec3f V = viewDir_;
+    V.normalize();
+    Vec3f C = Vec3f(color_.r / 255.f, color_.g / 255.f, color_.b / 255.f);
+
+    Vec3f ambientComponent = Vec3f(C.x * ambientStrength, C.y * ambientStrength, C.z * ambientStrength);
+
+    float diff = std::max(N * L, 0.f);
+    Vec3f diffuseComponent = Vec3f(C.x * diff * diffuseStrength, C.y * diff * diffuseStrength, C.z * diff * diffuseStrength);
+
+    Vec3f reflectDir = (N * 2.f * (N * L) - L).normalize();
+    float spec = std::pow(std::max(reflectDir * V, 0.f), shininess);
+    Vec3f specularComponent = Vec3f(specularStrength * spec, specularStrength * spec, specularStrength * spec);
+
+    Vec3f result = ambientComponent + diffuseComponent + specularComponent;
+
+    result.x = std::min(255.f, result.x * 255.f);
+    result.y = std::min(255.f, result.y * 255.f);
+    result.z = std::min(255.f, result.z * 255.f);
+
+    return TGAColor(result.x, result.y, result.z, color_.a);
+}
 
 Vec3f getBarycentricCoords(Vec3f P, Vec3f A, Vec3f B, Vec3f C) {
     Vec3f s0(C.x - A.x, B.x - A.x, A.x - P.x);
@@ -35,20 +66,18 @@ void drawTriangle(Vec3f t0, Vec3f t1, Vec3f t2, Vec2f uv0, Vec2f uv1, Vec2f uv2,
             if (zbuffer[idx] > z) continue;
             zbuffer[idx] = z;
 
+            Vec3f normal = n0 * baryCoord.x + n1 * baryCoord.y + n2 * baryCoord.z;
+            normal.normalize();
+
             Vec2f uv = uv0 * baryCoord.x + uv1 * baryCoord.y + uv2 * baryCoord.z;
             uv.x *= texture_image.get_width();
             uv.y *= texture_image.get_height();
-            TGAColor color = texture_image.get(static_cast<int>(uv.x), static_cast<int>(uv.y));
+            TGAColor texColor = texture_image.get(static_cast<int>(uv.x), static_cast<int>(uv.y));
 
-            Vec3f normal = n0 * baryCoord.x + n1 * baryCoord.y + n2 * baryCoord.z;
-            normal.normalize();
-            float intensity = normal * lightDirection;
-            if (intensity < 0) intensity = 0;
-            color.r *= intensity;
-            color.g *= intensity;
-            color.b *= intensity;
+            Vec3f viewDir = (eyePos - (t0 * baryCoord.x + t1 * baryCoord.y + t2 * baryCoord.z)).normalize();
 
-            image.set(x, y, color);
+            TGAColor finalColor = phongShader(normal, Vec3f(x, y, 0), lightDirection, viewDir, texColor);
+            image.set(x, y, finalColor);
         }
     }
 }
