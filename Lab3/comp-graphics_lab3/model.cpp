@@ -62,7 +62,6 @@ Model::Model(const char* filename) : vertexes_(), faces_() {
             normalVertexes_.push_back(vn);
         }
     }
-    std::cerr << "Vertex number: " << vertexes_.size() << ". Faces number: " << faces_.size() << ". Textures number: " << textures_.size() << ". Normals number: " << normals_.size() << std::endl;
 }
 
 Model::~Model() {

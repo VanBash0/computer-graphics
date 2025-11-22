@@ -8,7 +8,7 @@ const int width = 800;
 const int height = 800;
 const int depth = 255;
 const Vec3f lightDirection = Vec3f(0, 0, 1);
-const Vec3f eyePos = Vec3f(0, 0, 5);
+const Vec3f eyePos = Vec3f(1, 0, 3);
 const Vec3f centerPos = Vec3f(0, 0, 0);
 const Vec3f upVector = Vec3f(0, 1, 0);
 const float shininess = 64.0f;
@@ -82,6 +82,36 @@ void drawTriangle(Vec3f t0, Vec3f t1, Vec3f t2, Vec2f uv0, Vec2f uv1, Vec2f uv2,
     }
 }
 
+enum Wall {
+    LeftRight = 100,
+    UpDown = 150,
+    Back = 200
+};
+void drawTriangle(Vec3f t0, Vec3f t1, Vec3f t2, TGAImage& image, int* zbuffer, Wall wall) {
+    int minX = std::max(0, (int)std::min({ t0.x, t1.x, t2.x }));
+    int maxX = std::min(width - 1, (int)std::max({ t0.x, t1.x, t2.x }));
+    int minY = std::max(0, (int)std::min({ t0.y, t1.y, t2.y }));
+    int maxY = std::min(height - 1, (int)std::max({ t0.y, t1.y, t2.y }));
+
+    Vec3f edge1 = t1 - t0;
+    Vec3f edge2 = t2 - t0;
+    Vec3f normal = (edge1 ^ edge2).normalize();
+
+    TGAColor color = TGAColor(255, 255, 255, 255);
+
+    for (int x = minX; x <= maxX; x++) {
+        for (int y = minY; y <= maxY; y++) {
+            Vec3f baryCoord = getBarycentricCoords(Vec3f(x, y, 0), t0, t1, t2);
+            if (baryCoord.x < 0 || baryCoord.y < 0 || baryCoord.z < 0) continue;
+            float z = t0.z * baryCoord.x + t1.z * baryCoord.y + t2.z * baryCoord.z;
+            int idx = x + y * width;
+            if (zbuffer[idx] > z) continue;
+            zbuffer[idx] = z;
+            image.set(x, y, TGAColor(static_cast<int>(wall), static_cast<int>(wall), static_cast<int>(wall), 255));
+        }
+    }
+}
+
 Matrix vectorToMatrix(Vec3f v) {
     Matrix result(4, 1);
     result[0][0] = v.x;
@@ -132,7 +162,6 @@ int main(int argc, char** argv) {
     texture.read_tga_file("resources/african_head_diffuse.tga");
     texture.flip_vertically();
 
-    model = new Model("resources/african_head.obj");
     int* zbuffer = new int[width * height];
     for (int i = 0; i < width * height; i++) {
         zbuffer[i] = -1e30f;
@@ -143,6 +172,24 @@ int main(int argc, char** argv) {
     Matrix viewModel = getLookAt(eyePos, centerPos, upVector);
     projectionMatrix[3][2] = -1.f / (eyePos - centerPos).norm();
 
+    model = new Model("resources/cube.obj");
+    for (int i = 0; i < model->getNumFaces(); i++) {
+        std::vector<int> face = model->getFaceByIndex(i);
+        Vec3i screenCoords[3];
+        Vec3f worldCoords[3];
+        for (int j = 0; j < 3; j++) {
+            Vec3f vert = model->getVertexByIndex(face[j]);
+            screenCoords[j] = matrixToVector(cameraViewport * projectionMatrix * viewModel * vectorToMatrix(vert));
+            worldCoords[j] = vert;
+        }
+        Wall wall;
+        if (i < 4) wall = Wall::LeftRight;
+        else if (i > 7) wall = Wall::Back;
+        else wall = Wall::UpDown;
+        drawTriangle(screenCoords[0], screenCoords[1], screenCoords[2], image, zbuffer, wall);
+    }
+
+    model = new Model("resources/african_head.obj");
     for (int i = 0; i < model->getNumFaces(); i++) {
         std::vector<int> face = model->getFaceByIndex(i);
         std::vector<int> textureIndices = model->getTextureByIndex(i);
